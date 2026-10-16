@@ -2,6 +2,10 @@
 
 ### ▶ Play now: **<https://f1-2d-game-production.up.railway.app>**
 
+[![Velocity GP trailer — click to watch with sound](trailer/preview.gif)](trailer/velocity-gp-trailer.mp4)
+
+🎬 **[Watch the 30-second launch trailer](trailer/velocity-gp-trailer.mp4)** (1080p, 60 fps, with sound). The footage is the real game: its own physics, AI drivers and graphics.
+
 A top-down, Formula-style racing game for the browser with **online and LAN multiplayer**. Open the link above, create a room and send friends the 4-letter code, or run the server on your own computer and race with everyone on your Wi-Fi. Works on laptops and phones.
 
 - 3-lap races (1–10 configurable), up to 8 cars, AI drivers fill empty grid slots (optional)
@@ -163,6 +167,7 @@ server.js           Node server: Express static hosting, /health, WebSocket room
 public/index.html   The game client (HTML + CSS + JS, HTML5 Canvas, Web Audio)
 public/shared.js    Shared by server AND client: constants, track data, physics, collisions
 package.json        Dependencies (express, ws) and the "start" script
+trailer/            Launch trailer (velocity-gp-trailer.mp4) and the README preview GIF
 ```
 
 ### How the networking works
