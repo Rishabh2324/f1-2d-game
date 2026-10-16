@@ -1,6 +1,8 @@
 # Velocity GP 🏁
 
-A top-down, Formula-style racing game for the browser with **LAN multiplayer**. One computer runs a small Node.js server; everyone on the same Wi-Fi opens a web page, creates or joins a room, and races in real time — on laptops or phones.
+### ▶ Play now: **<https://f1-2d-game-production.up.railway.app>**
+
+A top-down, Formula-style racing game for the browser with **online and LAN multiplayer**. Open the link above, create a room and send friends the 4-letter code, or run the server on your own computer and race with everyone on your Wi-Fi. Works on laptops and phones.
 
 - 3-lap races (1–10 configurable), up to 8 cars, AI drivers fill empty grid slots (optional)
 - Two fictional circuits: **Aurora Park** and **Kestrel Bay**
@@ -10,6 +12,21 @@ A top-down, Formula-style racing game for the browser with **LAN multiplayer**. 
 All teams, drivers and circuits are fictional.
 
 ---
+
+## Play online (no install)
+
+1. Open **<https://f1-2d-game-production.up.railway.app>**.
+2. Enter a name → **Single Player** to race the AI, or **Create Room** to get a 4-letter code.
+3. Friends open the same link → **Join Room** → type the code (or tap the room in *Open rooms*).
+4. Everyone picks a team colour and presses **Ready up**, then the host presses **Start Race**.
+
+Health check: <https://f1-2d-game-production.up.railway.app/health>
+
+---
+
+## Play on your Wi-Fi (run it yourself)
+
+Use this for the lowest lag when everyone is in the same place, or to play without internet.
 
 ## 1. Setup (host computer — do this once)
 
@@ -76,9 +93,9 @@ Also note: some guest/public/office Wi-Fi networks block devices from talking to
 3. Enter a name → **Join Room** → type the 4-letter code (e.g. `K7QX`) or tap the room in the *Open rooms* list.
 4. Pick a team colour and press **Ready up**. When everyone's ready, the host presses **Start Race**.
 
-## 6. Play online (deploy to Render or Railway)
+## 6. Deploy your own copy (Railway or Render)
 
-The same code runs on a free cloud host, so friends can join from anywhere, not just your Wi-Fi. Push this folder to a GitHub repository first, then:
+The official copy runs on Railway at <https://f1-2d-game-production.up.railway.app>. To deploy your own, push this folder to a GitHub repository first, then:
 
 **Render** (<https://render.com>)
 1. *New → Web Service* → connect your GitHub repo.
@@ -90,13 +107,15 @@ The same code runs on a free cloud host, so friends can join from anywhere, not 
 1. *New Project → Deploy from GitHub repo* → pick the repo. Railway detects Node and runs `npm start`.
 2. In the service's *Settings → Networking*, click **Generate Domain**.
 3. (Optional) *Settings → Deploy → Healthcheck Path*: `/health`.
-4. Open the `https://<name>.up.railway.app` address and share it.
+4. (Optional) *Variables* → add `PUBLIC_URL` = your `https://<name>.up.railway.app` address, so the server's startup log shows it.
+5. Open the `https://<name>.up.railway.app` address and share it. Every push to GitHub redeploys it automatically.
 
 Nothing needs configuring: the server reads the port from `PORT`, the page connects its WebSocket back to whichever address it was loaded from (`wss://` on https, `ws://` on http), and the lobby shows the public address instead of a Wi-Fi one. On any other host, set a `PUBLIC_URL` environment variable so the lobby shows the right link.
 
 Notes:
 - Online play adds internet latency (typically 30–150 ms vs. a few ms on Wi-Fi). Other cars are interpolated, so it stays smooth, but bumps between cars feel softer.
-- Render's free tier sleeps after ~15 minutes without visitors; the first visit then takes up to a minute to wake it. Rooms live in memory, so a restart or redeploy ends any race in progress.
+- Rooms live in memory, so a restart or redeploy ends any race in progress.
+- Render's free tier sleeps after ~15 minutes without visitors; the first visit then takes up to a minute to wake it.
 - `GET /health` returns `{"status":"ok", ...}` with uptime and room/player counts.
 
 ---
@@ -155,6 +174,7 @@ package.json        Dependencies (express, ws) and the "start" script
 - Dead connections are cleaned up two ways: a WebSocket ping/pong heartbeat every 25 s, and any client that stops answering the 2 s app-level `ping` for 10 s is dropped (so an AI takes over its car quickly).
 
 ## Troubleshooting
+- **Online: "Connection lost, reconnecting…" right after a deploy:** the server restarted. The page reconnects on its own; rooms from before the restart are gone, so create a new one.
 - **Other devices can't load the page:** check they're on the same Wi-Fi, the address includes `:3000`, and the firewall allows Node.js (section 4). Try opening the address on the host computer itself first.
 - **"Port 3000 is already in use":** another program is using it — close it or start with `PORT=3001 npm start`.
 - **No sound:** browsers only allow audio after you click or press a key; also check the 🔊 button / `M`.
