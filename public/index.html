@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1016">
+<title>Velocity GP</title>
+<style>
+  :root {
+    --bg: #0d1016; --panel: rgba(15, 19, 27, 0.93); --panel2: rgba(255, 255, 255, 0.04);
+    --line: rgba(255, 255, 255, 0.09); --text: #eef1f6; --muted: #8d97a8;
+    --accent: #ff3b4e; --accent-d: #d92c3e; --gold: #ffc53d; --ok: #2ecc71; --purple: #b46cff;
+    --radius: 14px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+    font-family: var(--font); -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+  button { font-family: inherit; }
+
+  /* ---------- Screens & panels ---------- */
+  .screen {
+    position: fixed; inset: 0; display: flex; padding: 16px; overflow-y: auto;
+    background: radial-gradient(ellipse at center, rgba(8, 10, 14, 0.25), rgba(8, 10, 14, 0.82));
+  }
+  .panel {
+    margin: auto; width: 100%; max-width: 420px; padding: 26px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55); backdrop-filter: blur(8px);
+  }
+  .panel.wide { max-width: 900px; }
+  h1, h2, h3 { margin: 0; }
+  h2 { font-size: 22px; letter-spacing: 0.5px; margin-bottom: 14px; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 18px 0 10px; font-weight: 700; }
+  .logo { font-size: 44px; font-weight: 900; font-style: italic; letter-spacing: -1px; line-height: 1; }
+  .logo span { color: var(--accent); margin-left: 6px; }
+  .tag { color: var(--muted); margin: 6px 0 22px; font-size: 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  label.field { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; margin-bottom: 16px; }
+  input[type=text], select {
+    display: block; width: 100%; margin-top: 7px; padding: 12px 14px; font-size: 16px; font-family: inherit;
+    color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 10px;
+    outline: none; -webkit-user-select: text; user-select: text;
+  }
+  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  select:disabled { opacity: 0.75; }
+  select option { background: #1b2130; }
+
+  .btn {
+    display: block; width: 100%; padding: 14px 18px; margin-top: 10px; font-size: 16px; font-weight: 700;
+    color: var(--text); background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line);
+    border-radius: 11px; cursor: pointer; transition: background 0.15s, transform 0.05s, opacity 0.15s;
+  }
+  .btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.13); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--accent-d); }
+  .btn.ghost { background: transparent; }
+  .btn.on { background: rgba(46, 204, 113, 0.18); border-color: var(--ok); color: #b6f5cf; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; align-items: stretch; }
+  .row > * { margin-top: 0; }
+  .status { margin-top: 18px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); display: inline-block; }
+  .dot.ok { background: var(--ok); }
+  .keys { margin-top: 18px; font-size: 12px; color: var(--muted); line-height: 1.8; border-top: 1px solid var(--line); padding-top: 14px; }
+  kbd { font-family: var(--mono); font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); color: var(--text); }
+
+  /* Join */
+  #codeInput { text-transform: uppercase; font-family: var(--mono); font-size: 24px; letter-spacing: 8px; text-align: center; margin-top: 0; }
+  .room-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+  .room-item {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px; width: 100%; text-align: left;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 11px; color: var(--text); cursor: pointer;
+  }
+  .room-item:hover:not(:disabled) { border-color: var(--accent); }
+  .room-item:disabled { opacity: 0.5; cursor: not-allowed; }
+  .room-item .rc { font-family: var(--mono); font-size: 20px; font-weight: 800; letter-spacing: 3px; }
+  .room-item .rinfo { flex: 1; display: flex; flex-direction: column; font-size: 14px; }
+  .room-item .rinfo small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .room-item .rstate { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--ok); }
+  .room-item:disabled .rstate { color: var(--gold); }
+  .empty { color: var(--muted); font-size: 14px; padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: 11px; }
+
+  /* Lobby */
+  .lobby-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+  .lobby-head .lbl { font-size: 11px; letter-spacing: 2px; font-weight: 800; color: var(--muted); }
+  .code { font-family: var(--mono); font-size: 46px; font-weight: 900; letter-spacing: 8px; line-height: 1.05; color: #fff; }
+  #joinUrl { max-width: 420px; text-align: right; line-height: 1.5; }
+  #joinUrl b { color: var(--text); font-family: var(--mono); }
+  .lobby-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 26px; }
+  #playerList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .player { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; font-size: 15px; }
+  .player.me { border-color: rgba(255, 255, 255, 0.25); }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3); }
+  .player .pname { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 3px 7px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); color: var(--muted); white-space: nowrap; }
+  .badge.ready { background: rgba(46, 204, 113, 0.18); color: #7ef0ad; }
+  .badge.host { background: rgba(255, 197, 61, 0.16); color: var(--gold); }
+  .badge.warn { background: rgba(255, 59, 78, 0.16); color: #ff8b97; }
+  .ping { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 44px; text-align: right; }
+  #teamPicker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .team {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px;
+    background: var(--panel2); border: 2px solid transparent; border-radius: 10px; color: var(--text); cursor: pointer; font-size: 10px; line-height: 1.2;
+  }
+  .team i { width: 30px; height: 14px; border-radius: 4px; background: var(--c); display: block; }
+  .team.sel { border-color: var(--c); background: rgba(255, 255, 255, 0.08); }
+  .team:disabled { opacity: 0.3; cursor: not-allowed; }
+  .settings label.field { margin-bottom: 12px; }
+  .check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; margin: 6px 0 4px; }
+  .check input { width: 20px; height: 20px; accent-color: var(--accent); }
+  #trackDesc { font-size: 13px; line-height: 1.5; margin: -4px 0 8px; }
+  .lobby-actions { display: flex; gap: 10px; margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .lobby-actions .btn { margin-top: 0; }
+  .lobby-actions #btnLeave { flex: 0 0 120px; }
+  #lobbyHint { text-align: center; margin-top: 12px; min-height: 18px; }
+  .mini-results { font-size: 13px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .mini-results div { display: flex; gap: 8px; padding: 6px 10px; align-items: center; }
+  .mini-results div:nth-child(odd) { background: var(--panel2); }
+  .mini-results .t { margin-left: auto; font-family: var(--mono); color: var(--muted); }
+
+  /* Results */
+  table.results { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 8px; }
+  table.results th { text-align: left; font-size: 11px; color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  table.results td { padding: 10px; border-bottom: 1px solid var(--line); }
+  table.results tr.me td { background: rgba(255, 255, 255, 0.06); }
+  table.results .pos { font-weight: 900; font-size: 17px; width: 44px; }
+  table.results .tm { font-family: var(--mono); white-space: nowrap; }
+  table.results .fl { color: var(--purple); font-weight: 700; }
+  .drv { display: flex; align-items: center; gap: 10px; }
+  .drv small { color: var(--muted); }
+  #resultsTitle { font-size: 30px; font-weight: 900; font-style: italic; }
+  .table-wrap { overflow-x: auto; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
+  .hud-box { background: rgba(10, 13, 19, 0.72); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(4px); }
+  .hud-tl { position: absolute; left: 12px; top: 12px; padding: 12px 14px; min-width: 190px; }
+  .hud-pos { display: flex; align-items: baseline; gap: 12px; }
+  #hudPos { font-size: 40px; font-weight: 900; font-style: italic; line-height: 1; }
+  #hudPosOf { font-size: 18px; color: var(--muted); font-weight: 700; margin-left: -10px; }
+  .hud-lap { margin-left: auto; text-align: right; font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: 1.5px; }
+  .hud-lap b { display: block; font-size: 20px; color: var(--text); letter-spacing: 0; }
+  .times { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: 13px; }
+  .times label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1.2px; align-self: center; }
+  .times span { font-family: var(--mono); text-align: right; }
+  .times .pb { color: var(--purple); }
+  #tower { position: absolute; left: 12px; top: 200px; margin: 0; padding: 6px; list-style: none; min-width: 150px; font-size: 13px; }
+  #tower li { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; }
+  #tower li.me { background: rgba(255, 255, 255, 0.12); }
+  #tower .tp { width: 16px; text-align: right; font-weight: 800; color: var(--muted); }
+  #tower .tb { width: 4px; height: 14px; border-radius: 2px; }
+  #tower .tn { flex: 1; font-weight: 700; letter-spacing: 0.5px; }
+  #tower .tn.h::after { content: " •"; color: var(--gold); }
+  #tower .ts { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .hud-br { position: absolute; right: 12px; bottom: 12px; padding: 12px 16px; width: 220px; }
+  .speed { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
+  #hudSpeed { font-size: 46px; font-weight: 900; font-style: italic; line-height: 1; }
+  .speed small { color: var(--muted); font-weight: 700; }
+  .meter-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; color: var(--muted); }
+  .meter { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 100%; background: var(--ok); border-radius: 4px; transition: width 0.3s, background 0.3s; }
+  #hudTyrePct { font-family: var(--mono); color: var(--text); width: 38px; text-align: right; }
+  .drs { margin-top: 10px; text-align: center; padding: 6px; border-radius: 8px; font-size: 12px; font-weight: 900; letter-spacing: 2px; background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+  .drs.ready { background: rgba(46, 204, 113, 0.25); color: #9ff5c4; animation: pulse 0.7s infinite alternate; }
+  .drs.active { background: var(--ok); color: #062; }
+  .drs.used { opacity: 0.45; }
+  @keyframes pulse { from { opacity: 0.6; } to { opacity: 1; } }
+  .hud-buttons { position: absolute; right: 12px; top: calc(var(--mm-h, 150px) + 22px); display: flex; gap: 8px; align-items: center; pointer-events: auto; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: rgba(10, 13, 19, 0.72); color: var(--text); font-size: 18px; cursor: pointer; }
+  #hudPing { background: rgba(10, 13, 19, 0.72); padding: 4px 8px; border-radius: 8px; }
+  .banner {
+    position: absolute; left: 50%; top: 30%; transform: translateX(-50%); padding: 14px 30px; border-radius: 14px;
+    background: rgba(10, 13, 19, 0.82); border: 1px solid var(--line); font-size: 30px; font-weight: 900; font-style: italic;
+    letter-spacing: 1px; white-space: nowrap; animation: pop 0.25s ease-out;
+  }
+  .banner.gold { color: var(--gold); }
+  .banner.purple { color: var(--purple); }
+  @keyframes pop { from { transform: translateX(-50%) scale(0.8); opacity: 0; } }
+  .wrongway { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); font-size: 34px; font-weight: 900; color: #fff; background: var(--accent); padding: 10px 26px; border-radius: 12px; animation: pulse 0.4s infinite alternate; }
+
+  /* ---------- Overlays, toasts ---------- */
+  .overlay { position: fixed; inset: 0; display: flex; padding: 16px; background: rgba(5, 7, 10, 0.6); z-index: 20; }
+  .overlay .panel { max-width: 360px; text-align: center; }
+  #reconnect { z-index: 30; }
+  .spinner { width: 36px; height: 36px; margin: 0 auto 14px; border-radius: 50%; border: 4px solid rgba(255, 255, 255, 0.15); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #toasts { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 40; pointer-events: none; width: max-content; max-width: calc(100% - 32px); }
+  .toast { padding: 10px 16px; border-radius: 10px; background: rgba(20, 25, 35, 0.95); border: 1px solid var(--line); font-size: 14px; font-weight: 600; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); transition: opacity 0.3s, transform 0.3s; text-align: center; }
+  .toast.error { border-color: rgba(255, 59, 78, 0.6); color: #ffb3bb; }
+  .toast.good { border-color: rgba(46, 204, 113, 0.6); color: #b6f5cf; }
+  .toast.purple { border-color: rgba(180, 108, 255, 0.6); color: #dcc1ff; }
+  .toast.out { opacity: 0; transform: translateY(8px); }
+
+  /* ---------- Touch controls ---------- */
+  #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #touch .tl, #touch .tr { position: absolute; bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; gap: 12px; align-items: flex-end; pointer-events: auto; }
+  #touch .tl { left: calc(14px + env(safe-area-inset-left)); }
+  #touch .tr { right: calc(14px + env(safe-area-inset-right)); }
+  #touch button {
+    width: 84px; height: 84px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12); color: #fff; font-size: 26px; font-weight: 900; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  #touch button.down { background: rgba(255, 255, 255, 0.38); }
+  #touch .gas { width: 92px; height: 124px; border-radius: 22px; background: rgba(46, 204, 113, 0.28); font-size: 16px; }
+  #touch .brk { width: 84px; height: 96px; border-radius: 22px; background: rgba(255, 59, 78, 0.28); font-size: 14px; }
+  #touch .sm { width: 60px; height: 60px; font-size: 13px; }
+  body.touch .hud-br { bottom: calc(150px + env(safe-area-inset-bottom)); width: 180px; padding: 8px 12px; }
+  body.touch #hudSpeed { font-size: 32px; }
+  body.touch #toasts { bottom: auto; top: 90px; }
+
+  @media (max-width: 760px) {
+    .lobby-grid { grid-template-columns: 1fr; gap: 4px; }
+    .code { font-size: 36px; }
+    #joinUrl { text-align: left; }
+    .panel { padding: 20px; }
+    #tower { display: none; }
+  }
+  @media (max-width: 760px), (max-height: 500px) {
+    .hud-tl { min-width: 150px; padding: 8px 10px; }
+    #hudPos { font-size: 28px; }
+    .times { font-size: 11px; margin-top: 6px; }
+    .hud-lap b { font-size: 16px; }
+    .banner { font-size: 22px; padding: 10px 20px; }
+    .wrongway { font-size: 24px; }
+  }
+  @media (max-height: 500px) { #tower { display: none; } }
+  @media (max-width: 500px) {
+    #touch button { width: 64px; height: 64px; font-size: 20px; }
+    #touch .gas { width: 74px; height: 100px; }
+    #touch .brk { width: 64px; height: 80px; font-size: 12px; }
+    #touch .sm { width: 48px; height: 48px; font-size: 11px; }
+    #touch .tl, #touch .tr { gap: 8px; }
+    body.touch .hud-br { bottom: calc(126px + env(safe-area-inset-bottom)); width: 150px; }
+    .times .opt { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ================= MAIN MENU ================= -->
+<section id="menu" class="screen">
+  <div class="panel">
+    <h1 class="logo">VELOCITY<span>GP</span></h1>
+    <p class="tag">Top-down open-wheel racing · LAN multiplayer</p>
+    <label class="field">Driver name
+      <input type="text" id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
+    </label>
+    <button id="btnSingle" class="btn primary">Single Player</button>
+    <button id="btnCreate" class="btn">Create Room</button>
+    <button id="btnJoin" class="btn">Join Room</button>
+    <div class="status"><span id="connDot" class="dot"></span><span id="connStatus">Connecting to server…</span></div>
+    <div class="keys">
+      <kbd>↑</kbd>/<kbd>W</kbd> throttle · <kbd>↓</kbd>/<kbd>S</kbd> brake/reverse · <kbd>←</kbd><kbd>→</kbd>/<kbd>A</kbd><kbd>D</kbd> steer<br>
+      <kbd>Space</kbd> DRS · <kbd>P</kbd> pause/menu · <kbd>R</kbd> reset to track · <kbd>M</kbd> mute
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOIN ROOM ================= -->
+<section id="join" class="screen hidden">
+  <div class="panel">
+    <h2>Join Room</h2>
+    <label class="field">Room code</label>
+    <div class="row">
+      <input type="text" id="codeInput" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button id="btnJoinCode" class="btn primary" style="width:auto;padding:0 22px">Join</button>
+    </div>
+    <h3>Open rooms on this server</h3>
+    <div id="roomList" class="room-list"><div class="empty">Looking for rooms…</div></div>
+    <button id="btnJoinBack" class="btn ghost">Back</button>
+  </div>
+</section>
+
+<!-- ================= LOBBY ================= -->
+<section id="lobby" class="screen hidden">
+  <div class="panel wide">
+    <div class="lobby-head">
+      <div>
+        <div class="lbl" id="lobbyLabel">ROOM CODE</div>
+        <div class="code" id="lobbyCode">----</div>
+      </div>
+      <div id="joinUrl" class="muted small"></div>
+    </div>
+    <div class="lobby-grid">
+      <div>
+        <h3>Drivers <span id="playerCount"></span></h3>
+        <ul id="playerList"></ul>
+        <h3>Team colour</h3>
+        <div id="teamPicker"></div>
+      </div>
+      <div class="settings">
+        <h3>Race settings</h3>
+        <label class="field">Track <select id="setTrack"></select></label>
+        <div id="trackDesc" class="muted"></div>
+        <div class="row">
+          <label class="field" style="flex:1">Laps <select id="setLaps"></select></label>
+          <label class="field" style="flex:1.4">AI difficulty
+            <select id="setDiff"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="setAI"> Fill empty grid slots with AI cars</label>
+        <div id="lastResultsWrap" class="hidden">
+          <h3>Last race</h3>
+          <div id="lastResults" class="mini-results"></div>
+        </div>
+      </div>
+    </div>
+    <div class="lobby-actions">
+      <button id="btnLeave" class="btn ghost">Leave</button>
+      <button id="btnReady" class="btn">Ready up</button>
+      <button id="btnStart" class="btn primary">Start Race</button>
+    </div>
+    <div id="lobbyHint" class="muted small"></div>
+  </div>
+</section>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div class="hud-tl hud-box">
+    <div class="hud-pos">
+      <span id="hudPos">P-</span><span id="hudPosOf">/-</span>
+      <div class="hud-lap">LAP<b id="hudLap">1/3</b></div>
+    </div>
+    <div class="times">
+      <label>LAP</label><span id="hudCur">0:00.000</span>
+      <label class="opt">LAST</label><span id="hudLast" class="opt">—</span>
+      <label>BEST</label><span id="hudBest">—</span>
+      <label class="opt">PB</label><span id="hudPB" class="pb opt">—</span>
+    </div>
+  </div>
+  <ol id="tower" class="hud-box"></ol>
+  <div class="hud-br hud-box">
+    <div class="speed"><span id="hudSpeed">0</span><small>km/h</small></div>
+    <div class="meter-row">TYRES<div class="meter"><i id="hudTyre"></i></div><span id="hudTyrePct">100%</span></div>
+    <div id="hudDrs" class="drs">DRS</div>
+  </div>
+  <div class="hud-buttons">
+    <span id="hudPing" class="ping"></span>
+    <button id="btnMute" class="icon-btn" title="Mute (M)">🔊</button>
+    <button id="btnMenu" class="icon-btn" title="Menu (P)">☰</button>
+  </div>
+  <div id="banner" class="banner hidden"></div>
+  <div id="wrongWay" class="wrongway hidden">WRONG WAY</div>
+</div>
+
+<!-- ================= TOUCH CONTROLS ================= -->
+<div id="touch" class="hidden">
+  <div class="tl">
+    <button data-k="left" aria-label="Steer left">◀</button>
+    <button data-k="right" aria-label="Steer right">▶</button>
+  </div>
+  <div class="tr">
+    <button data-k="drs" class="sm">DRS</button>
+    <button data-k="brake" class="brk">BRAKE</button>
+    <button data-k="gas" class="gas">GAS</button>
+  </div>
+</div>
+
+<!-- ================= RESULTS ================= -->
+<section id="results" class="screen hidden">
+  <div class="panel wide">
+    <div id="resultsTitle">Race Results</div>
+    <div id="resultsSub" class="muted" style="margin:4px 0 12px"></div>
+    <div class="table-wrap"><table id="resultsTable" class="results"></table></div>
+    <button id="btnBackLobby" class="btn primary" style="margin-top:18px">Back to Lobby</button>
+  </div>
+</section>
+
+<!-- ================= PAUSE / MENU ================= -->
+<div id="pause" class="overlay hidden">
+  <div class="panel">
+    <h2 id="pauseTitle">Paused</h2>
+    <p id="pauseNote" class="muted small"></p>
+    <button id="btnResume" class="btn primary">Resume</button>
+    <button id="btnPauseMute" class="btn">Sound: On</button>
+    <button id="btnQuit" class="btn ghost">Leave Race</button>
+  </div>
+</div>
+
+<!-- ================= RECONNECTING ================= -->
+<div id="reconnect" class="overlay hidden">
+  <div class="panel">
+    <div class="spinner"></div>
+    <h2>Connection lost</h2>
+    <p class="muted">Reconnecting…</p>
+    <button id="btnGiveUp" class="btn ghost">Back to menu</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="shared.js"></script>
+<script>
+(() => {
+'use strict';
+
+// ============================================================
+// CONFIG & STATE
+// ============================================================
+const S = window.Shared, C = S.C;
+const TRACKS = S.TRACK_DEFS.map((d, i) => S.buildTrack(d, i));
+const $ = id => document.getElementById(id);
+const IS_TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+if (IS_TOUCH) document.body.classList.add('touch');
+const canvas = $('game');
+const ctx = canvas.getContext('2d');
+
+// Web Storage can throw (private browsing, blocked storage) — always guard it.
+function makeStore(kind) {
+  return {
+    get(k, d) { try { const v = window[kind].getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { window[kind].setItem(k, String(v)); } catch (e) { /* storage unavailable */ } }
+  };
+}
+const store = makeStore('localStorage');   // name, PBs, mute (persist)
+const sess = makeStore('sessionStorage');  // per-tab identity for reconnects
+
+// The token identifies this tab to the server so a dropped connection can
+// reclaim the same player slot (and car). Per tab, so two tabs = two players.
+let token = sess.get('vgp_token', '');
+if (!token) { token = Math.random().toString(36).slice(2) + Date.now().toString(36); sess.set('vgp_token', token); }
+
+const app = {
+  screen: 'menu',
+  ws: null, connected: false, reconnectTimer: null, lastMsgAt: 0,
+  roomCode: sess.get('vgp_room', '') || null,   // rejoin after a page reload
+  playerId: null, lobby: null, urls: [], ping: 0,
+  race: null, menuOpen: false, roomPoll: null
+};
+
+const pbKey = id => 'vgp_pb_' + id;
+function getPB(id) { const v = parseFloat(store.get(pbKey(id), '')); return isFinite(v) ? v : null; }
+function savePB(id, t) {
+  const pb = getPB(id);
+  if (pb == null || t < pb) { store.set(pbKey(id), t.toFixed(3)); return true; }
+  return false;
+}
+const fmt = S.fmtTime;
+
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const t = f < 0 ? 0 : 255, p = Math.abs(f);
+  const c = v => Math.round((t - v) * p + v);
+  return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+const TEAM_DARK = S.TEAMS.map(t => shade(t.color, -0.5));
+
+// ============================================================
+// NETWORKING
+// One WebSocket to the server. All messages are JSON with a "type" field.
+// If the socket drops while we're in a room we show an overlay and keep
+// retrying; on reconnect we send "rejoin" with our token to get our slot back.
+// ============================================================
+function connect() {
+  clearTimeout(app.reconnectTimer);
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  let ws;
+  try { ws = new WebSocket(`${proto}://${location.host}/ws`); } catch (e) { scheduleReconnect(); return; }
+  app.ws = ws;
+  ws.onopen = () => {
+    app.connected = true;
+    app.lastMsgAt = performance.now();
+    updateConnStatus();
+    if (app.roomCode) send({ type: 'rejoin', code: app.roomCode, token });
+    else if (app.screen === 'join') send({ type: 'listRooms' });
+  };
+  ws.onmessage = e => {
+    app.lastMsgAt = performance.now();
+    let m;
+    try { m = JSON.parse(e.data); } catch (err) { return; }
+    const h = NET[m.type];
+    if (h) h(m);
+  };
+  ws.onclose = () => { if (app.ws === ws) connectionLost(); };
+  ws.onerror = () => {};
+}
+function connectionLost() {
+  const old = app.ws;
+  app.ws = null;
+  app.connected = false;
+  if (old) { old.onclose = null; try { old.close(); } catch (e) { /* ignore */ } }
+  updateConnStatus();
+  if (app.roomCode) $('reconnect').classList.remove('hidden');
+  scheduleReconnect();
+}
+function scheduleReconnect() {
+  clearTimeout(app.reconnectTimer);
+  app.reconnectTimer = setTimeout(connect, 1200);
+}
+function send(msg) {
+  if (app.ws && app.ws.readyState === 1) app.ws.send(JSON.stringify(msg));
+}
+// Watchdog: the server sends something at least every 2 s. If it goes quiet
+// (Wi-Fi blip, laptop lid), treat the link as dead and reconnect.
+setInterval(() => {
+  if (app.ws && app.connected && performance.now() - app.lastMsgAt > 6000) connectionLost();
+}, 1000);
+
+function updateConnStatus() {
+  $('connDot').classList.toggle('ok', app.connected);
+  $('connStatus').textContent = app.connected ? `Connected to ${location.host}` : 'Connecting to server…';
+}
+
+// Server -> client message handlers
+const NET = {
+  welcome(m) { app.urls = m.urls || []; },
+  roomList(m) { renderRoomList(m.rooms || []); },
+  ping(m) { send({ type: 'pong', t: m.t }); if (m.ping != null) app.ping = m.ping; },
+
+  error(m) {
+    toast(m.message || 'Something went wrong', 'error');
+    if (m.reason === 'rejoinFailed') { forgetRoom(); endRaceView(); showScreen('menu'); }
+  },
+
+  roomJoined(m) {
+    app.roomCode = m.code;
+    app.playerId = m.playerId;
+    sess.set('vgp_room', m.code);
+    $('reconnect').classList.add('hidden');
+    if (m.rejoined && app.race && m.inRace) return;   // raceInit (resume) follows
+    if (app.race && !app.race.ended) endRaceView();   // our race is gone (ended while offline)
+    if (!app.race) showScreen('lobby');
+    if (m.rejoined) toast('Reconnected', 'good');
+  },
+
+  lobbyUpdate(m) {
+    app.lobby = m;
+    renderLobby();
+    // We were in a race that no longer exists for us (e.g. it ended while offline).
+    if (app.race && m.state === 'lobby' && app.screen === 'race' && !app.race.ended) { endRaceView(); showScreen('lobby'); }
+  },
+
+  raceInit(m) { startRaceView(m); },
+
+  lights(m) {
+    const r = app.race;
+    if (!r) return;
+    r.lights = m.n;
+    beep(520, 0.18);
+  },
+
+  go() {
+    const r = app.race;
+    if (!r) return;
+    goNow(r);
+    beep(880, 0.45);
+  },
+
+  // ~20x/s: authoritative positions, laps and standings for every car.
+  raceUpdate(m) {
+    const r = app.race;
+    if (!r || r.ended) return;
+    const now = performance.now();
+    // Estimate (server clock - local clock). Packets that arrive faster give
+    // a larger offset, so we jump up to those and only drift down slowly.
+    const off = m.st - now;
+    if (r.timeOffset == null || off > r.timeOffset) r.timeOffset = off;
+    else r.timeOffset += (off - r.timeOffset) * 0.02;
+    const byId = new Map();
+    for (const c of m.cars) byId.set(c.i, c);
+    r.snaps.push({ t: m.st, byId });
+    if (r.snaps.length > 40) r.snaps.shift();
+    r.raceT = m.t;
+    r.raceTAt = now;
+    if (m.ph === 'racing' && r.phase === 'countdown') goNow(r);   // missed the "go" message
+    for (const c of m.cars) {
+      const car = r.cars.get(c.i);
+      if (!car) continue;
+      car.lap = c.l; car.pos = c.p; car.flags = c.f; car.best = c.b; car.ls = c.ls; car.tyre = c.ty;
+    }
+    r.standings = [...r.cars.values()].sort((a, b) => a.pos - b.pos);
+  },
+
+  lapCompleted(m) {
+    const r = app.race;
+    if (!r) return;
+    const mine = m.id === r.myId;
+    if (mine) {
+      r.lastLap = m.time;
+      if (r.me) r.me.drsAvail = true;            // DRS: once per lap
+      const pb = !m.ai && savePB(r.trackId, m.time);   // laps the AI drove for us don't count
+      if (pb) toast(`New personal best! ${fmt(m.time)}`, 'purple');
+      else toast(`Lap ${m.lap}: ${fmt(m.time)}`, 'info', 2200);
+      if (m.lap === r.laps - 1) banner('FINAL LAP', 1800, 'gold');
+    }
+    if (r.fastest == null || m.time < r.fastest) {
+      if (r.fastest != null && !mine) toast(`Fastest lap: ${m.name} ${fmt(m.time)}`, 'purple', 2200);
+      r.fastest = m.time;
+    }
+  },
+
+  carFinished(m) {
+    const r = app.race;
+    if (!r) return;
+    if (m.id === r.myId) {
+      r.finished = true;
+      banner(m.pos === 1 ? 'WINNER! P1' : `FINISHED P${m.pos}`, 3500, m.pos === 1 ? 'gold' : '');
+      beep(660, 0.12); setTimeout(() => beep(990, 0.3), 140);
+    } else if (m.pos === 1) {
+      toast(`🏁 ${m.name} wins the race!`, 'info');
+    }
+  },
+
+  raceFinished(m) {
+    const r = app.race;
+    if (r) { r.ended = true; r.phase = 'finished'; }
+    setMenu(false);
+    showResults(m);
+  },
+
+  playerLeft(m) {
+    if (!app.race) return;
+    toast(m.permanent ? `${m.name} left — an AI driver takes over` : `${m.name} lost connection — AI is driving for now`, 'info');
+  },
+  playerRejoined(m) { if (m.id !== app.playerId) toast(`${m.name} is back`, 'good'); },
+
+  paused(m) {
+    const r = app.race;
+    if (!r) return;
+    r.paused = m.paused;
+    if (m.paused !== app.menuOpen) setMenu(m.paused);
+  },
+
+  // Server rejected our position (implausible jump): snap back.
+  correction(m) {
+    const r = app.race;
+    if (!r || !r.me) return;
+    Object.assign(r.me, { x: m.x, y: m.y, a: m.a, vx: 0, vy: 0 });
+  }
+};
+
+function forgetRoom() {
+  app.roomCode = null;
+  app.playerId = null;
+  app.lobby = null;
+  sess.set('vgp_room', '');
+  $('reconnect').classList.add('hidden');
+}
+
+// ============================================================
+// ROOMS / LOBBY UI
+// ============================================================
+function showScreen(name) {
+  for (const id of ['menu', 'join', 'lobby', 'results']) $(id).classList.toggle('hidden', id !== name);
+  app.screen = name || 'race';
+  const racing = app.screen === 'race' && !!app.race;
+  $('hud').classList.toggle('hidden', !racing);
+  $('touch').classList.toggle('hidden', !(racing && IS_TOUCH));
+  clearInterval(app.roomPoll);
+  if (name === 'join') {
+    send({ type: 'listRooms' });
+    app.roomPoll = setInterval(() => send({ type: 'listRooms' }), 2000);
+  }
+  if (racing && document.activeElement) document.activeElement.blur();
+}
+
+function toast(msg, kind = 'info', ms = 3200) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, ms);
+}
+
+let bannerTimer = null;
+function banner(text, ms, cls) {
+  const el = $('banner');
+  el.textContent = text;
+  el.className = 'banner ' + (cls || '');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+// ---- Main menu ----
+const nameInput = $('nameInput');
+nameInput.value = store.get('vgp_name', '');
+function getName() {
+  const n = nameInput.value.replace(/[<>&"]/g, '').trim().slice(0, 16);
+  if (!n) { toast('Enter your driver name first', 'error'); nameInput.focus(); return null; }
+  store.set('vgp_name', n);
+  return n;
+}
+function requireConn() {
+  if (!app.connected) { toast('Not connected to the server yet — retrying…', 'error'); return false; }
+  return true;
+}
+const prefTeam = () => { const t = parseInt(store.get('vgp_team', ''), 10); return Number.isInteger(t) ? t : undefined; };
+
+$('btnSingle').onclick = () => {
+  const name = getName();
+  if (!name || !requireConn()) return;
+  initAudio();
+  send({ type: 'createRoom', name, token, isPrivate: true, team: prefTeam() });
+};
+$('btnCreate').onclick = () => {
+  const name = getName();
+  if (!name || !requireConn()) return;
+  initAudio();
+  send({ type: 'createRoom', name, token, isPrivate: false, team: prefTeam() });
+};
+$('btnJoin').onclick = () => {
+  if (!getName()) return;
+  showScreen('join');
+  if (!IS_TOUCH) $('codeInput').focus();
+};
+
+// ---- Join screen ----
+const codeInput = $('codeInput');
+codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') joinCode(codeInput.value); });
+$('btnJoinCode').onclick = () => joinCode(codeInput.value);
+$('btnJoinBack').onclick = () => showScreen('menu');
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSingle').click(); });
+
+function joinCode(code) {
+  const name = getName();
+  if (!name || !requireConn()) return;
+  code = String(code || '').toUpperCase().trim();
+  if (code.length !== 4) { toast('Room codes are 4 characters, e.g. K7QX', 'error'); return; }
+  initAudio();
+  send({ type: 'joinRoom', name, code, token, team: prefTeam() });
+}
+
+function renderRoomList(rooms) {
+  const box = $('roomList');
+  box.textContent = '';
+  if (!rooms.length) {
+    box.innerHTML = '<div class="empty">No open rooms yet. Ask the host for their code, or create a room.</div>';
+    return;
+  }
+  for (const r of rooms) {
+    const full = r.players >= r.max, racing = r.state !== 'lobby';
+    const b = document.createElement('button');
+    b.className = 'room-item';
+    b.disabled = full || racing;
+    b.innerHTML = '<span class="rc"></span><span class="rinfo"><b></b><small></small></span><span class="rstate"></span>';
+    b.querySelector('.rc').textContent = r.code;
+    b.querySelector('b').textContent = `${r.host}'s room`;
+    b.querySelector('small').textContent = `${r.track} · ${r.players}/${r.max} drivers`;
+    b.querySelector('.rstate').textContent = full ? 'Full' : racing ? 'Racing' : 'Join';
+    b.onclick = () => joinCode(r.code);
+    box.appendChild(b);
+  }
+}
+
+// ---- Lobby ----
+TRACKS.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t.name; $('setTrack').appendChild(o); });
+for (let l = 1; l <= 10; l++) { const o = document.createElement('option'); o.value = l; o.textContent = l + (l === 1 ? ' lap' : ' laps'); $('setLaps').appendChild(o); }
+function sendSettings() {
+  send({ type: 'setSettings', track: +$('setTrack').value, laps: +$('setLaps').value, difficulty: $('setDiff').value, aiFill: $('setAI').checked });
+}
+for (const id of ['setTrack', 'setLaps', 'setDiff', 'setAI']) $(id).addEventListener('change', sendSettings);
+$('btnReady').onclick = () => {
+  const me = app.lobby && app.lobby.players.find(p => p.id === app.playerId);
+  send({ type: 'ready', ready: !(me && me.ready) });
+};
+$('btnStart').onclick = () => { initAudio(); send({ type: 'startRace' }); };
+$('btnLeave').onclick = leaveToMenu;
+
+function setVal(id, v) { const el = $(id); if (document.activeElement !== el && el.value !== String(v)) el.value = String(v); }
+
+function renderLobby() {
+  const L = app.lobby;
+  if (!L) return;
+  const isHost = L.hostId === app.playerId;
+  const me = L.players.find(p => p.id === app.playerId);
+  const inLobby = L.state === 'lobby';
+
+  $('lobbyLabel').textContent = L.isPrivate ? 'SINGLE PLAYER' : 'ROOM CODE';
+  $('lobbyCode').textContent = L.isPrivate ? 'SOLO' : L.code;
+  const ju = $('joinUrl');
+  ju.textContent = '';
+  if (L.isPrivate) ju.textContent = 'Race against AI drivers. Press P during the race to pause.';
+  else {
+    // Opened via localhost: share the LAN address the server reported.
+    // Opened any other way (LAN IP or a deployed https URL): share this page's address.
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+    const url = (local && app.urls[0]) || location.origin;
+    const lan = /^http:\/\/(10|172\.(1[6-9]|2\d|3[01])|192\.168)\./.test(url);
+    ju.append(lan ? 'Friends on your Wi-Fi open ' : 'Friends open ');
+    const b1 = document.createElement('b'); b1.textContent = url; ju.append(b1);
+    ju.append(' → Join Room → ');
+    const b2 = document.createElement('b'); b2.textContent = L.code; ju.append(b2);
+  }
+  $('playerCount').textContent = `${L.players.length}/${L.maxPlayers}`;
+
+  // Players
+  const ul = $('playerList');
+  ul.textContent = '';
+  for (const p of L.players) {
+    const li = document.createElement('li');
+    li.className = 'player' + (p.id === app.playerId ? ' me' : '');
+    const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = S.TEAMS[p.team].color;
+    const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name + (p.id === app.playerId ? ' (you)' : '');
+    const badge = document.createElement('span');
+    if (!p.connected) { badge.className = 'badge warn'; badge.textContent = 'RECONNECTING…'; }
+    else if (p.isHost) { badge.className = 'badge host'; badge.textContent = 'HOST'; }
+    else if (p.ready) { badge.className = 'badge ready'; badge.textContent = 'READY'; }
+    else { badge.className = 'badge'; badge.textContent = 'NOT READY'; }
+    const ping = document.createElement('span'); ping.className = 'ping'; ping.textContent = p.connected ? `${p.ping} ms` : '—';
+    li.append(sw, nm, badge, ping);
+    if (L.isPrivate) { badge.remove(); ping.remove(); }
+    ul.appendChild(li);
+  }
+
+  // Team colours (one car per colour)
+  const tp = $('teamPicker');
+  tp.textContent = '';
+  S.TEAMS.forEach((t, i) => {
+    const owner = L.players.find(p => p.team === i);
+    const b = document.createElement('button');
+    b.className = 'team' + (me && me.team === i ? ' sel' : '');
+    b.style.setProperty('--c', t.color);
+    b.disabled = !inLobby || (owner && owner.id !== app.playerId);
+    b.title = owner ? `${t.name} — ${owner.name}` : t.name;
+    const sw = document.createElement('i');
+    const lbl = document.createElement('span'); lbl.textContent = t.name;
+    b.append(sw, lbl);
+    b.onclick = () => { send({ type: 'setTeam', team: i }); store.set('vgp_team', i); };
+    tp.appendChild(b);
+  });
+
+  // Settings (host edits, everyone sees)
+  for (const id of ['setTrack', 'setLaps', 'setDiff', 'setAI']) $(id).disabled = !isHost || !inLobby;
+  setVal('setTrack', L.settings.track);
+  setVal('setLaps', L.settings.laps);
+  setVal('setDiff', L.settings.difficulty);
+  $('setAI').checked = L.settings.aiFill;
+  const tr = TRACKS[L.settings.track];
+  const pb = getPB(tr.id);
+  $('trackDesc').textContent = tr.desc + (pb != null ? `  Your PB: ${fmt(pb)}` : '');
+
+  // Buttons
+  const others = L.players.filter(p => !p.isHost);
+  const allReady = others.every(p => p.ready && p.connected);
+  $('btnReady').classList.toggle('hidden', isHost || L.isPrivate);
+  if (me) { $('btnReady').textContent = me.ready ? '✓ Ready' : 'Ready up'; $('btnReady').classList.toggle('on', !!me.ready); }
+  $('btnReady').disabled = !inLobby;
+  $('btnStart').classList.toggle('hidden', !isHost);
+  $('btnStart').disabled = !(allReady && inLobby);
+  let hint = '';
+  if (!inLobby) hint = 'A race is in progress — you will join the next one.';
+  else if (isHost && !allReady) hint = 'Waiting for everyone to be ready…';
+  else if (isHost) hint = L.isPrivate ? '' : 'Everyone is ready — start when you like!';
+  else hint = me && me.ready ? 'Waiting for the host to start the race…' : 'Pick a colour and press Ready.';
+  $('lobbyHint').textContent = hint;
+
+  // Last race
+  const lr = L.lastResults;
+  $('lastResultsWrap').classList.toggle('hidden', !lr);
+  if (lr) {
+    const box = $('lastResults');
+    box.textContent = '';
+    const winner = lr.results[0];
+    for (const r of lr.results) {
+      const d = document.createElement('div');
+      const pos = document.createElement('b'); pos.textContent = 'P' + r.pos;
+      const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = S.TEAMS[r.team].color;
+      const nm = document.createElement('span'); nm.textContent = r.name + (r.isAI ? ' (AI)' : '');
+      const t = document.createElement('span'); t.className = 't';
+      t.textContent = r.time == null ? r.status : r === winner ? fmt(r.time) : '+' + (r.time - winner.time).toFixed(3);
+      d.append(pos, sw, nm, t);
+      box.appendChild(d);
+    }
+  }
+}
+
+function showResults(m) {
+  const tb = $('resultsTable');
+  tb.textContent = '';
+  const head = document.createElement('tr');
+  for (const h of ['Pos', 'Driver', 'Time', 'Best lap']) { const th = document.createElement('th'); th.textContent = h; head.appendChild(th); }
+  tb.appendChild(head);
+  const winner = m.results[0];
+  const laps = m.results.map(r => r.bestLap).filter(v => v != null);
+  const fastest = laps.length ? Math.min(...laps) : null;
+  let myPos = null;
+  for (const r of m.results) {
+    const tr = document.createElement('tr');
+    if (r.playerId && r.playerId === app.playerId) { tr.className = 'me'; myPos = r.pos; }
+    const pos = document.createElement('td'); pos.className = 'pos'; pos.textContent = r.pos;
+    const drv = document.createElement('td');
+    const dw = document.createElement('div'); dw.className = 'drv';
+    const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = S.TEAMS[r.team].color;
+    const nm = document.createElement('span');
+    nm.textContent = r.name + ' ';
+    const sm = document.createElement('small');
+    sm.textContent = S.TEAMS[r.team].name + (r.isAI ? ' · AI' : r.aiTakeover ? ' · AI took over' : '');
+    nm.appendChild(sm);
+    dw.append(sw, nm); drv.appendChild(dw);
+    const tm = document.createElement('td'); tm.className = 'tm';
+    tm.textContent = r.time == null ? r.status : (r === winner || winner.time == null) ? fmt(r.time) : '+' + (r.time - winner.time).toFixed(3) + 's';
+    const bl = document.createElement('td'); bl.className = 'tm' + (r.bestLap != null && r.bestLap === fastest ? ' fl' : '');
+    bl.textContent = fmt(r.bestLap);
+    tr.append(pos, drv, tm, bl);
+    tb.appendChild(tr);
+  }
+  $('resultsTitle').textContent = myPos ? (myPos === 1 ? 'Victory! You won 🏆' : `You finished P${myPos}`) : 'Race Results';
+  const pb = getPB(m.trackId);
+  $('resultsSub').textContent = `${m.track} · ${m.laps} lap${m.laps > 1 ? 's' : ''}` + (fastest != null ? ` · fastest lap ${fmt(fastest)}` : '') + (pb != null ? ` · your PB ${fmt(pb)}` : '');
+  $('btnBackLobby').textContent = app.lobby && app.lobby.isPrivate ? 'Back to Setup' : 'Back to Lobby';
+  showScreen('results');
+}
+$('btnBackLobby').onclick = () => { endRaceView(); showScreen('lobby'); renderLobby(); };
+
+function leaveToMenu() {
+  send({ type: 'leaveRoom' });
+  forgetRoom();
+  endRaceView();
+  setMenu(false);
+  showScreen('menu');
+}
+
+// ============================================================
+// INPUT (keyboard + touch)
+// ============================================================
+const keys = Object.create(null);
+const touch = { left: false, right: false, gas: false, brake: false, drs: false };
+let steerNow = 0;   // smoothed steering value -1..1
+const GAME_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
+
+addEventListener('keydown', e => {
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  initAudio();
+  if (app.race && app.screen === 'race' && GAME_KEYS.has(e.code)) e.preventDefault();
+  keys[e.code] = true;
+  if (e.repeat) return;
+  if (e.code === 'KeyM') { toggleMute(); return; }
+  if (!app.race || app.screen !== 'race') return;
+  if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+  else if (e.code === 'KeyR') resetCar();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+for (const b of document.querySelectorAll('#touch [data-k]')) {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); touch[k] = true; b.classList.add('down'); initAudio(); try { b.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } };
+  const off = () => { touch[k] = false; b.classList.remove('down'); };
+  b.addEventListener('pointerdown', on);
+  b.addEventListener('pointerup', off);
+  b.addEventListener('pointercancel', off);
+  b.addEventListener('lostpointercapture', off);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// Digital keys -> smooth steering so the car doesn't twitch at speed.
+function readInput(dt) {
+  const left = keys.ArrowLeft || keys.KeyA || touch.left;
+  const right = keys.ArrowRight || keys.KeyD || touch.right;
+  const target = (right ? 1 : 0) - (left ? 1 : 0);
+  const rate = target === 0 ? 10 : (steerNow !== 0 && Math.sign(target) !== Math.sign(steerNow) ? 14 : 6);
+  const d = target - steerNow;
+  steerNow += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
+  return {
+    throttle: (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0,
+    brake: (keys.ArrowDown || keys.KeyS || touch.brake) ? 1 : 0,
+    steer: steerNow,
+    drs: !!(keys.Space || touch.drs)
+  };
+}
+
+function togglePause() {
+  const r = app.race;
+  if (!r || r.ended) return;
+  const open = !app.menuOpen;
+  // Single player: really pause (server freezes AI + race clock).
+  // Multiplayer: just show the menu, the race keeps going.
+  if (app.lobby && app.lobby.isPrivate && r.phase === 'racing') {
+    r.paused = open;
+    send({ type: 'pauseRace', paused: open });
+  }
+  setMenu(open);
+}
+function setMenu(open) {
+  app.menuOpen = open;
+  $('pause').classList.toggle('hidden', !open);
+  const solo = app.lobby && app.lobby.isPrivate;
+  $('pauseTitle').textContent = solo ? 'Paused' : 'Menu';
+  $('pauseNote').textContent = solo ? 'The race is paused.' : 'Multiplayer race — the race keeps running while this menu is open!';
+  updateMuteButtons();
+}
+$('btnMenu').onclick = togglePause;
+$('btnResume').onclick = togglePause;
+$('btnQuit').onclick = leaveToMenu;
+$('btnGiveUp').onclick = leaveToMenu;
+
+function resetCar() {
+  const r = app.race;
+  if (!r || !r.me || r.phase !== 'racing' || r.paused) return;
+  const now = performance.now();
+  if (now - (r.lastReset || 0) < 2000) return;
+  r.lastReset = now;
+  const me = r.me, tr = r.track;
+  const i = S.nearest(tr, me.x, me.y, me.idx).idx;
+  Object.assign(me, { x: tr.pts[i].x, y: tr.pts[i].y, a: tr.heading[i], vx: 0, vy: 0, idx: i });
+  sendCarState(r, true);
+}
+
+// ============================================================
+// RACE (client side)
+// Our own car is simulated locally every frame for instant response and
+// reported to the server 20x/s. Every other car is drawn from server
+// snapshots, interpolated INTERP_DELAY ms in the past so motion is smooth.
+// ============================================================
+function startRaceView(m) {
+  const tr = TRACKS[m.trackId];
+  const r = {
+    trackId: m.trackId, track: tr, laps: m.laps, phase: m.phase, ended: false,
+    lights: 0, goFlash: 0, paused: !!m.paused,
+    myId: m.yourCarId, cars: new Map(), standings: [], snaps: [], timeOffset: null,
+    raceT: m.raceTime || 0, raceTAt: performance.now(),
+    me: null, sendAcc: 0, lastLap: null, fastest: null, finished: false,
+    wrongWayT: 0, lastReset: 0, lastInput: { throttle: 0, brake: 0, steer: 0, drs: false }
+  };
+  m.cars.forEach((c, k) => {
+    r.cars.set(c.id, {
+      id: c.id, name: c.name, team: c.team, color: S.TEAMS[c.team].color, isAI: c.isAI, playerId: c.playerId,
+      rx: c.x, ry: c.y, ra: c.a, vx: 0, vy: 0, flags: c.isAI ? 8 : 0, lap: 0, pos: k + 1, best: null, ls: 0, tyre: 1,
+      nHint: -1, skidPrev: null
+    });
+  });
+  r.standings = [...r.cars.values()];
+  const mine = r.cars.get(m.yourCarId);
+  if (mine) {
+    r.me = { x: mine.rx, y: mine.ry, a: mine.ra, vx: 0, vy: 0, idx: -1, tyre: 1, drsTime: 0, drsAvail: true, slip: 0, surface: 'track', skidPrev: null };
+    if (m.resume) {
+      Object.assign(r.me, { x: m.resume.x, y: m.resume.y, a: m.resume.a, vx: m.resume.vx, vy: m.resume.vy, tyre: m.resume.tyre, drsAvail: m.resume.drsAvail });
+      r.finished = !!m.resume.finished;
+      mine.lap = m.resume.lap;
+    }
+    r.me.idx = S.nearest(tr, r.me.x, r.me.y, -1).idx;
+  }
+  app.race = r;
+  steerNow = 0;
+  skids.count = 0; skids.head = 0;
+  particles.length = 0;
+  snapCamera();
+  setMenu(r.paused);
+  $('banner').classList.add('hidden');
+  showScreen(null);
+  if (m.phase === 'countdown') banner('GET READY', 1400, '');
+}
+
+function endRaceView() {
+  app.race = null;
+  $('wrongWay').classList.add('hidden');
+  $('banner').classList.add('hidden');
+}
+
+function goNow(r) {
+  if (r.phase !== 'countdown') return;
+  r.phase = 'racing';
+  r.lights = 0;
+  r.goFlash = 1.4;
+  r.raceT = 0;
+  r.raceTAt = performance.now();
+}
+
+function raceNow(r) {
+  if (r.paused || r.phase !== 'racing') return r.raceT;
+  return r.raceT + Math.min(0.3, (performance.now() - r.raceTAt) / 1000);
+}
+
+function sendCarState(r, reset) {
+  const me = r.me;
+  const r1 = v => Math.round(v * 10) / 10;
+  send({
+    type: 'carState',
+    x: r1(me.x), y: r1(me.y), a: Math.round(me.a * 1000) / 1000, vx: r1(me.vx), vy: r1(me.vy),
+    ty: Math.round(me.tyre * 1000) / 1000, drs: me.drsTime > 0, br: !!me.braking,
+    th: r.lastInput.throttle, st: Math.round(r.lastInput.steer * 100) / 100, rs: reset ? 1 : 0
+  });
+}
+
+function updateMyCar(r, dt) {
+  const me = r.me;
+  if (!me) return;
+  let inp = readInput(dt);
+  const driving = r.phase === 'racing' && !r.paused;
+  if (app.menuOpen || !driving) inp = { throttle: driving ? 0 : inp.throttle, brake: 0, steer: 0, drs: false };
+  r.lastInput = inp;
+  if (r.phase === 'countdown' || r.paused) return;   // held on the grid / frozen
+  if (r.phase === 'finished') inp = { throttle: 0, brake: 0.3, steer: 0, drs: false };
+
+  // Sub-step physics at ≤ 1/120 s for stable collisions on slow frames.
+  const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
+  const h = dt / steps;
+  for (let s = 0; s < steps; s++) {
+    const hit = S.stepCar(me, inp, h, r.track);
+    if (hit > 120) {
+      cam.shake = Math.min(14, hit / 30);
+      thud(Math.min(1, hit / 500));
+      spawnParticles(me.x + Math.cos(me.a) * 20, me.y + Math.sin(me.a) * 20, 0, 0, ['#ffd166', '#ffffff', '#ff9f1c'], 10, 160);
+    }
+    for (const car of r.cars.values()) {
+      if (car.id === r.myId) continue;
+      const other = { x: car.rx, y: car.ry, a: car.ra, vx: car.vx, vy: car.vy };
+      const imp = S.collideCars(me, other, 0.5, 0);
+      if (imp > 70) { thud(Math.min(1, imp / 400)); cam.shake = Math.max(cam.shake, Math.min(8, imp / 50)); }
+    }
+  }
+  me.braking = inp.brake > 0.1;
+
+  if (r.phase === 'racing') {
+    r.sendAcc += dt;
+    if (r.sendAcc >= 1 / C.NET_RATE) { r.sendAcc = Math.min(r.sendAcc - 1 / C.NET_RATE, 0.05); sendCarState(r, false); }
+  }
+
+  // Wrong-way warning
+  const tr = r.track, i = me.idx;
+  const along = me.vx * tr.tx[i] + me.vy * tr.ty[i];
+  r.wrongWayT = along < -60 ? r.wrongWayT + dt : 0;
+}
+
+// Remote cars: find the two snapshots around (server now - INTERP_DELAY)
+// and blend between them. If we run out of data, extrapolate briefly.
+function interpolateRemote(r) {
+  if (!r.snaps.length || r.timeOffset == null) return;
+  const rt = performance.now() + r.timeOffset - C.INTERP_DELAY;
+  let a = null, b = null;
+  for (let i = r.snaps.length - 1; i >= 0; i--) {
+    if (r.snaps[i].t <= rt) { a = r.snaps[i]; b = r.snaps[i + 1] || null; break; }
+  }
+  if (!a) { a = r.snaps[0]; b = null; }
+  for (const car of r.cars.values()) {
+    if (car.id === r.myId) continue;
+    const ca = a.byId.get(car.id);
+    if (!ca) continue;
+    const cb = b && b.byId.get(car.id);
+    if (cb && !r.paused) {
+      const t = S.clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1);
+      car.rx = S.lerp(ca.x, cb.x, t); car.ry = S.lerp(ca.y, cb.y, t);
+      car.ra = S.lerpAngle(ca.a, cb.a, t);
+      car.vx = S.lerp(ca.vx, cb.vx, t); car.vy = S.lerp(ca.vy, cb.vy, t);
+    } else {
+      const ex = r.paused || r.ended ? 0 : S.clamp((rt - a.t) / 1000, 0, 0.15);
+      car.rx = ca.x + ca.vx * ex; car.ry = ca.y + ca.vy * ex; car.ra = ca.a;
+      car.vx = ca.vx; car.vy = ca.vy;
+    }
+  }
+}
+
+function updateRace(dt) {
+  const r = app.race;
+  if (!r) return;
+  interpolateRemote(r);
+  updateMyCar(r, dt);
+  if (!r.paused) updateEffects(r, dt);
+  if (r.goFlash > 0) r.goFlash -= dt;
+}
+
+// ============================================================
+// EFFECTS: skid marks + particles
+// ============================================================
+const SKID_MAX = 2400;
+const skids = { buf: new Float32Array(SKID_MAX * 4), count: 0, head: 0 };
+function pushSkid(x1, y1, x2, y2) {
+  const o = skids.head * 4;
+  skids.buf[o] = x1; skids.buf[o + 1] = y1; skids.buf[o + 2] = x2; skids.buf[o + 3] = y2;
+  skids.head = (skids.head + 1) % SKID_MAX;
+  if (skids.count < SKID_MAX) skids.count++;
+}
+function rearTyres(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a), lx = -13, ly = 10;
+  return [x + c * lx + s * ly, y + s * lx - c * ly, x + c * lx - s * ly, y + s * lx + c * ly];
+}
+function trackSkid(holder, x, y, a, active) {
+  if (!active) { holder.skidPrev = null; return; }
+  const t = rearTyres(x, y, a), p = holder.skidPrev;
+  if (p) { pushSkid(p[0], p[1], t[0], t[1]); pushSkid(p[2], p[3], t[2], t[3]); }
+  holder.skidPrev = t;
+}
+
+const particles = [];
+function spawnParticles(x, y, vx, vy, colors, n, spread) {
+  for (let i = 0; i < n && particles.length < 500; i++) {
+    const life = 0.35 + Math.random() * 0.45;
+    particles.push({
+      x, y, vx: vx * 0.2 + (Math.random() - 0.5) * spread, vy: vy * 0.2 + (Math.random() - 0.5) * spread,
+      life, max: life, size: 2.5 + Math.random() * 4, color: colors[(Math.random() * colors.length) | 0]
+    });
+  }
+}
+
+function updateEffects(r, dt) {
+  const tr = r.track;
+  const dust = [tr.theme.grass, '#7a5c3a', '#9b7b52', tr.theme.out];
+  const each = (holder, x, y, a, vx, vy, slip, surface, braking) => {
+    const sp = Math.hypot(vx, vy);
+    trackSkid(holder, x, y, a, sp > 90 && (slip > 55 || (braking && sp > 380)) && surface !== 'grass');
+    if (surface === 'grass' && sp > 70 && Math.random() < 0.8) {
+      const t = rearTyres(x, y, a);
+      spawnParticles(t[0], t[1], -vx, -vy, dust, 1, 60);
+      spawnParticles(t[2], t[3], -vx, -vy, dust, 1, 60);
+    }
+  };
+  if (r.me && r.phase !== 'countdown') each(r.me, r.me.x, r.me.y, r.me.a, r.me.vx, r.me.vy, r.me.slip, r.me.surface, r.me.braking);
+  for (const car of r.cars.values()) {
+    if (car.id === r.myId) continue;
+    const nr = S.nearest(tr, car.rx, car.ry, car.nHint);
+    car.nHint = nr.idx;
+    const slip = Math.abs(-car.vx * Math.sin(car.ra) + car.vy * Math.cos(car.ra));
+    each(car, car.rx, car.ry, car.ra, car.vx, car.vy, slip, S.surfaceOf(tr, nr), car.flags & 4);
+  }
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 1 - 2.5 * dt; p.vy *= 1 - 2.5 * dt;
+  }
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+let DPR = 1, cssW = 0, cssH = 0;
+const cam = { x: 0, y: 0, z: 1, shake: 0 };
+const attract = { s: 0 };
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  cssW = window.innerWidth; cssH = window.innerHeight;
+  canvas.width = Math.round(cssW * DPR);
+  canvas.height = Math.round(cssH * DPR);
+  for (const t of TRACKS) t.mm = null;
+}
+addEventListener('resize', resize);
+resize();
+
+const baseZoom = () => S.clamp(Math.min(cssW, cssH) / 820, 0.5, 1.15);
+const currentTrack = () => app.race ? app.race.track : TRACKS[(app.lobby && app.lobby.settings.track) || 0];
+
+function snapCamera() {
+  const r = app.race;
+  if (r && r.me) { cam.x = r.me.x; cam.y = r.me.y; }
+  cam.z = baseZoom();
+}
+
+function updateCamera(dt) {
+  const r = app.race;
+  let tx, ty, tz, follow = 5;
+  if (r) {
+    let x, y, vx = 0, vy = 0;
+    if (r.me) { x = r.me.x; y = r.me.y; vx = r.me.vx; vy = r.me.vy; }
+    else { const lead = r.standings[0]; x = lead.rx; y = lead.ry; vx = lead.vx; vy = lead.vy; }
+    // Look ahead in the direction of travel; zoom out a little at speed.
+    tx = x + vx * 0.28; ty = y + vy * 0.28;
+    tz = baseZoom() * (1 - 0.2 * Math.min(1, Math.hypot(vx, vy) / C.MAX_SPEED));
+  } else {
+    // Attract mode behind menus: drift along the selected circuit.
+    const tr = currentTrack();
+    attract.s = (attract.s + dt * 150) % tr.length;
+    const i = Math.floor(attract.s / tr.spacing) % tr.N, j = (i + 50) % tr.N;
+    tx = (tr.pts[i].x + tr.pts[j].x) / 2; ty = (tr.pts[i].y + tr.pts[j].y) / 2;
+    tz = baseZoom() * 0.55; follow = 1.2;
+    if (!isFinite(cam.x) || Math.hypot(cam.x - tx, cam.y - ty) > 3000) { cam.x = tx; cam.y = ty; cam.z = tz; }
+  }
+  const k = 1 - Math.exp(-follow * dt);
+  cam.x += (tx - cam.x) * k;
+  cam.y += (ty - cam.y) * k;
+  cam.z += (tz - cam.z) * (1 - Math.exp(-2 * dt));
+  cam.shake = Math.max(0, cam.shake - dt * 30);
+}
+
+// Per-track cached geometry (Path2D) and textures.
+function makePattern(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'));
+  return ctx.createPattern(c, 'repeat');
+}
+function trackGfx(tr) {
+  if (tr.gfx) return tr.gfx;
+  const path = new Path2D();
+  tr.pts.forEach((p, i) => (i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y)));
+  path.closePath();
+  const kerb = new Path2D();
+  let open = false;
+  for (let i = 0; i <= tr.N; i++) {
+    const k = i % tr.N, p = tr.pts[k];
+    if (tr.kerb[k]) { if (!open) { kerb.moveTo(p.x, p.y); open = true; } else kerb.lineTo(p.x, p.y); }
+    else open = false;
+  }
+  const th = tr.theme;
+  let seed = 7 + tr.id * 13;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  tr.gfx = {
+    path, kerb,
+    grass: makePattern(160, 8, g => { g.fillStyle = th.grass; g.fillRect(0, 0, 160, 8); g.fillStyle = th.grass2; g.fillRect(80, 0, 80, 8); }),
+    out: makePattern(256, 256, g => {
+      g.fillStyle = th.out; g.fillRect(0, 0, 256, 256);
+      g.fillStyle = th.out2;
+      for (let i = 0; i < 40; i++) { g.beginPath(); g.arc(rnd() * 256, rnd() * 256, 2 + rnd() * 5, 0, 7); g.fill(); }
+      g.fillStyle = th.bush;
+      for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(rnd() * 256, rnd() * 256, 9 + rnd() * 16, 0, 7); g.fill(); }
+    })
+  };
+  return tr.gfx;
+}
+
+function rrect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+
+function drawTrack(tr) {
+  const g = trackGfx(tr), hw = tr.halfW;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // Layers are thick strokes of the centreline, widest first. Where two parts
+  // of the circuit are close, their grass merges — exactly like the physics,
+  // which only puts a wall beyond RUNOFF from the *nearest* bit of track.
+  ctx.strokeStyle = '#25282d'; ctx.lineWidth = 2 * (hw + C.RUNOFF) + 22; ctx.stroke(g.path);   // tyre wall
+  ctx.strokeStyle = '#d9dce1'; ctx.lineWidth = 2 * (hw + C.RUNOFF) + 9; ctx.stroke(g.path);    // concrete
+  ctx.strokeStyle = g.grass; ctx.lineWidth = 2 * (hw + C.RUNOFF); ctx.stroke(g.path);          // runoff grass
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#f4f4f4'; ctx.lineWidth = 2 * (hw + C.KERB_WIDTH); ctx.stroke(g.kerb);     // kerbs
+  ctx.setLineDash([18, 18]); ctx.strokeStyle = '#d7263d'; ctx.stroke(g.kerb); ctx.setLineDash([]);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#e9e9e9'; ctx.lineWidth = 2 * hw; ctx.stroke(g.path);                     // edge lines
+  ctx.strokeStyle = '#4a4e55'; ctx.lineWidth = 2 * hw - 7; ctx.stroke(g.path);                 // asphalt
+  ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 46; ctx.stroke(g.path);                // rubbered line
+
+  // DRS zone markers
+  const mark = (i, label) => {
+    const p = tr.pts[i];
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(tr.heading[i]);
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(-2, -hw + 4, 4, 2 * hw - 8);
+    if (label) {
+      ctx.rotate(Math.PI / 2); ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.font = '900 34px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(label, 0, -16);
+    }
+    ctx.restore();
+  };
+  mark(tr.drs.from, 'DRS'); mark(tr.drs.to, '');
+
+  // Grid boxes
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3; ctx.lineCap = 'butt';
+  for (const s of tr.grid) {
+    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.a);
+    ctx.beginPath(); ctx.moveTo(14, -15); ctx.lineTo(28, -15); ctx.lineTo(28, 15); ctx.lineTo(14, 15); ctx.stroke();
+    ctx.restore();
+  }
+  // Chequered start/finish line
+  const p0 = tr.pts[0], sq = 10;
+  ctx.save(); ctx.translate(p0.x, p0.y); ctx.rotate(tr.heading[0]);
+  for (let col = 0; col < 2; col++) {
+    for (let k = 0, y = -hw; y < hw; y += sq, k++) {
+      ctx.fillStyle = (k + col) % 2 ? '#111' : '#fff';
+      ctx.fillRect(-sq + col * sq, y, sq, Math.min(sq, hw - y));
+    }
+  }
+  ctx.restore();
+}
+
+function drawSkids() {
+  if (!skids.count) return;
+  ctx.strokeStyle = 'rgba(22,22,24,0.38)';
+  ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  const b = skids.buf;
+  for (let i = 0; i < skids.count; i++) {
+    const o = i * 4;
+    ctx.moveTo(b[o], b[o + 1]); ctx.lineTo(b[o + 2], b[o + 3]);
+  }
+  ctx.stroke();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.max) * 0.85;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 6.283); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Open-wheel car in local coords: +x is forward, ~46 px long.
+function drawCar(x, y, a, team, flags) {
+  const col = S.TEAMS[team].color, dark = TEAM_DARK[team];
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';                       // shadow
+  rrect(ctx, -21, -10, 46, 24, 8); ctx.fill();
+  ctx.fillStyle = '#121212';                               // tyres
+  ctx.fillRect(-19, -14, 11, 6.5); ctx.fillRect(-19, 7.5, 11, 6.5);
+  ctx.fillRect(9, -13, 9, 5.5); ctx.fillRect(9, 7.5, 9, 5.5);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1.4;           // suspension
+  ctx.beginPath(); ctx.moveTo(-13, -8); ctx.lineTo(-6, -4); ctx.moveTo(-13, 8); ctx.lineTo(-6, 4);
+  ctx.moveTo(13, -8); ctx.lineTo(6, -3); ctx.moveTo(13, 8); ctx.lineTo(6, 3); ctx.stroke();
+  ctx.fillStyle = flags & 2 ? '#39ff88' : dark;             // rear wing (green = DRS open)
+  ctx.fillRect(-24, -10, 5, 20);
+  ctx.fillStyle = col;                                     // body
+  ctx.beginPath();
+  ctx.moveTo(-19, -5); ctx.lineTo(-7, -7.5); ctx.lineTo(5, -6); ctx.lineTo(16, -2.6); ctx.lineTo(23, -1.3);
+  ctx.lineTo(23, 1.3); ctx.lineTo(16, 2.6); ctx.lineTo(5, 6); ctx.lineTo(-7, 7.5); ctx.lineTo(-19, 5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = dark; ctx.fillRect(19, -12, 4, 24);      // front wing
+  ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.fillRect(-17, -1, 12, 2);
+  ctx.fillStyle = '#15171a';                               // cockpit
+  ctx.beginPath(); ctx.ellipse(-1, 0, 5.2, 3.4, 0, 0, 6.283); ctx.fill();
+  ctx.fillStyle = '#f2f2f2';                               // helmet
+  ctx.beginPath(); ctx.arc(-1.5, 0, 2.3, 0, 6.283); ctx.fill();
+  if (flags & 4) { ctx.fillStyle = '#ff2a2a'; ctx.fillRect(-25.5, -1.5, 2, 3); }  // brake light
+  ctx.restore();
+}
+
+const toScreen = (x, y) => [(x - cam.x) * cam.z + cssW / 2, (y - cam.y) * cam.z + cssH / 2];
+
+function drawNameTag(x, y, name, color, isMe) {
+  const [sx, sy0] = toScreen(x, y);
+  const sy = sy0 - 34 * cam.z - 8;
+  if (sx < -100 || sx > cssW + 100 || sy < -40 || sy > cssH + 40) return;
+  ctx.font = '700 12px system-ui, sans-serif';
+  const w = ctx.measureText(name).width + 22;
+  ctx.fillStyle = isMe ? 'rgba(255,255,255,0.92)' : 'rgba(10,12,16,0.78)';
+  rrect(ctx, sx - w / 2, sy - 10, w, 20, 10); ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(sx - w / 2 + 9, sy, 4, 0, 6.283); ctx.fill();
+  ctx.fillStyle = isMe ? '#111' : '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(name, sx + 5, sy + 1);
+}
+
+function getMinimap(tr) {
+  if (tr.mm) return tr.mm;
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const p of tr.pts) { minx = Math.min(minx, p.x); miny = Math.min(miny, p.y); maxx = Math.max(maxx, p.x); maxy = Math.max(maxy, p.y); }
+  const small = cssW < 760 || cssH < 500;
+  const maxW = small ? 130 : 210, maxH = small ? 95 : 150;
+  const sc = Math.min(maxW / (maxx - minx), maxH / (maxy - miny));
+  const path = new Path2D();
+  tr.pts.forEach((p, i) => { const x = (p.x - minx) * sc, y = (p.y - miny) * sc; i ? path.lineTo(x, y) : path.moveTo(x, y); });
+  path.closePath();
+  tr.mm = { sc, minx, miny, w: (maxx - minx) * sc + 20, h: (maxy - miny) * sc + 20, path };
+  document.documentElement.style.setProperty('--mm-h', Math.round(tr.mm.h) + 'px');
+  return tr.mm;
+}
+
+function drawMinimap(r) {
+  const tr = r.track, mm = getMinimap(tr);
+  const x0 = cssW - mm.w - 12, y0 = 12;
+  ctx.fillStyle = 'rgba(10,13,19,0.72)';
+  rrect(ctx, x0, y0, mm.w, mm.h, 12); ctx.fill();
+  ctx.save();
+  ctx.translate(x0 + 10, y0 + 10);
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 7; ctx.stroke(mm.path);
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5; ctx.stroke(mm.path);
+  const P = (x, y) => [(x - mm.minx) * mm.sc, (y - mm.miny) * mm.sc];
+  const [sx, sy] = P(tr.pts[0].x, tr.pts[0].y);
+  ctx.fillStyle = '#fff'; ctx.fillRect(sx - 1.5, sy - 6, 3, 12);
+  for (const car of r.cars.values()) {
+    if (car.id === r.myId) continue;
+    const [x, y] = P(car.rx, car.ry);
+    ctx.fillStyle = car.color;
+    ctx.beginPath(); ctx.arc(x, y, 3.6, 0, 6.283); ctx.fill();
+  }
+  if (r.me) {
+    const [x, y] = P(r.me.x, r.me.y);
+    ctx.fillStyle = S.TEAMS[r.cars.get(r.myId).team].color;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 5.5, 0, 6.283); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawLights(r) {
+  const showLights = r.phase === 'countdown';
+  if (!showLights && r.goFlash <= 0) return;
+  const n = 5, pod = IS_TOUCH && cssW < 600 ? 30 : 40, gap = pod * 0.3;
+  const total = n * pod + (n - 1) * gap;
+  const x0 = cssW / 2 - total / 2, y0 = cssH * 0.16;
+  ctx.globalAlpha = showLights ? 1 : Math.max(0, r.goFlash / 1.4);
+  ctx.fillStyle = 'rgba(8,10,14,0.85)';
+  rrect(ctx, x0 - 12, y0 - 12, total + 24, pod * 2 + 24, 14); ctx.fill();
+  for (let i = 0; i < n; i++) {
+    const x = x0 + i * (pod + gap) + pod / 2;
+    for (let row = 0; row < 2; row++) {
+      const lit = showLights && i < r.lights;
+      ctx.fillStyle = lit ? '#ff2433' : '#2a0b0e';
+      if (lit) { ctx.shadowColor = '#ff2433'; ctx.shadowBlur = 18; }
+      ctx.beginPath(); ctx.arc(x, y0 + pod / 2 + row * pod, pod * 0.38, 0, 6.283); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+  if (!showLights) {
+    ctx.fillStyle = '#39ff88';
+    ctx.font = `900 italic ${pod * 1.3}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('GO!', cssW / 2, y0 + pod * 2 + 22);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function render() {
+  const tr = currentTrack(), r = app.race;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = tr.theme.out;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // World space
+  const z = cam.z * DPR;
+  const shx = (Math.random() - 0.5) * cam.shake, shy = (Math.random() - 0.5) * cam.shake;
+  ctx.setTransform(z, 0, 0, z, canvas.width / 2 - (cam.x + shx) * z, canvas.height / 2 - (cam.y + shy) * z);
+  const vw = canvas.width / z, vh = canvas.height / z;
+  ctx.fillStyle = trackGfx(tr).out;
+  ctx.fillRect(cam.x - vw / 2 - 20, cam.y - vh / 2 - 20, vw + 40, vh + 40);
+  drawTrack(tr);
+  if (r) {
+    drawSkids();
+    drawParticles();
+    for (const car of r.cars.values()) if (car.id !== r.myId) drawCar(car.rx, car.ry, car.ra, car.team, car.flags);
+    if (r.me) drawCar(r.me.x, r.me.y, r.me.a, r.cars.get(r.myId).team, (r.me.drsTime > 0 ? 2 : 0) | (r.me.braking ? 4 : 0));
+  }
+
+  // Screen space (CSS pixels)
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (r && app.screen === 'race') {
+    for (const car of r.cars.values()) {
+      if (car.isAI || (car.flags & 8)) continue;            // tags only on human-driven cars
+      if (car.id === r.myId && r.me) drawNameTag(r.me.x, r.me.y, car.name, car.color, true);
+      else if (car.id !== r.myId) drawNameTag(car.rx, car.ry, car.name, car.color, false);
+    }
+    drawMinimap(r);
+    drawLights(r);
+  }
+}
+
+// ============================================================
+// HUD
+// ============================================================
+const hudEls = {};
+for (const id of ['hudPos', 'hudPosOf', 'hudLap', 'hudCur', 'hudLast', 'hudBest', 'hudPB', 'hudSpeed', 'hudTyrePct', 'hudPing', 'hudDrs']) hudEls[id] = $(id);
+function setText(el, s) { if (el._t !== s) { el._t = s; el.textContent = s; } }
+let towerKey = '';
+
+function updateHUD() {
+  const r = app.race;
+  if (!r || app.screen !== 'race') return;
+  const mine = r.cars.get(r.myId), me = r.me;
+  if (!mine || !me) return;
+  const done = r.finished || (mine.flags & 1);
+  setText(hudEls.hudPos, 'P' + mine.pos);
+  setText(hudEls.hudPosOf, '/' + r.cars.size);
+  setText(hudEls.hudLap, done ? 'FIN' : `${Math.min(r.laps, mine.lap + 1)}/${r.laps}`);
+  setText(hudEls.hudCur, r.phase === 'racing' && !done ? fmt(Math.max(0, raceNow(r) - mine.ls)) : done ? '—' : '0:00.000');
+  setText(hudEls.hudLast, fmt(r.lastLap));
+  setText(hudEls.hudBest, fmt(mine.best));
+  setText(hudEls.hudPB, fmt(getPB(r.trackId)));
+  setText(hudEls.hudSpeed, String(Math.round(Math.hypot(me.vx, me.vy) * C.KMH_PER_PX)));
+  const pct = Math.round(me.tyre * 100);
+  setText(hudEls.hudTyrePct, pct + '%');
+  const bar = $('hudTyre');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 75 ? 'var(--ok)' : pct > 55 ? 'var(--gold)' : 'var(--accent)';
+  // DRS status
+  let drsText = 'DRS', drsCls = 'drs';
+  if (me.drsTime > 0) { drsText = 'DRS OPEN'; drsCls += ' active'; }
+  else if (!me.drsAvail) { drsText = 'DRS USED'; drsCls += ' used'; }
+  else if (S.inDrsZone(r.track, me.idx) && r.phase === 'racing') { drsText = IS_TOUCH ? 'DRS — TAP!' : 'DRS — SPACE!'; drsCls += ' ready'; }
+  else drsText = 'DRS AVAILABLE';
+  setText(hudEls.hudDrs, drsText);
+  if (hudEls.hudDrs.className !== drsCls) hudEls.hudDrs.className = drsCls;
+  setText(hudEls.hudPing, app.connected ? `${app.ping} ms` : 'offline');
+  $('wrongWay').classList.toggle('hidden', !(r.wrongWayT > 1 && r.phase === 'racing'));
+
+  // Timing tower
+  const key = r.standings.map(c => `${c.id}:${c.lap}:${c.flags & 9}`).join('|');
+  if (key !== towerKey) {
+    towerKey = key;
+    const ol = $('tower');
+    ol.textContent = '';
+    for (const c of r.standings) {
+      const li = document.createElement('li');
+      if (c.id === r.myId) li.className = 'me';
+      const p = document.createElement('span'); p.className = 'tp'; p.textContent = c.pos;
+      const b = document.createElement('span'); b.className = 'tb'; b.style.background = c.color;
+      const n = document.createElement('span'); n.className = 'tn' + (!c.isAI && !(c.flags & 8) ? ' h' : '');
+      n.textContent = c.name.slice(0, 3).toUpperCase();
+      const s = document.createElement('span'); s.className = 'ts';
+      s.textContent = c.flags & 1 ? 'FIN' : `L${Math.min(r.laps, c.lap + 1)}`;
+      li.append(p, b, n, s);
+      ol.appendChild(li);
+    }
+  }
+}
+
+// ============================================================
+// AUDIO (Web Audio API — synthesised, no files)
+// Engine = sawtooth + square through a low-pass filter. Pitch follows a fake
+// 7-speed gearbox so it rises and drops like gear changes.
+// ============================================================
+const audio = { ctx: null, master: null, eng: null, muted: store.get('vgp_muted', '0') === '1' };
+
+function initAudio() {
+  if (audio.ctx) { if (audio.ctx.state === 'suspended') audio.ctx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  try {
+    const ac = audio.ctx = new AC();
+    audio.master = ac.createGain();
+    audio.master.gain.value = audio.muted ? 0 : 0.55;
+    audio.master.connect(ac.destination);
+    const o1 = ac.createOscillator(); o1.type = 'sawtooth';
+    const o2 = ac.createOscillator(); o2.type = 'square';
+    const g2 = ac.createGain(); g2.gain.value = 0.45;
+    const filt = ac.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 900; filt.Q.value = 3;
+    const gain = ac.createGain(); gain.gain.value = 0;
+    o1.connect(filt); o2.connect(g2); g2.connect(filt); filt.connect(gain); gain.connect(audio.master);
+    o1.start(); o2.start();
+    // Tyre squeal: band-passed noise
+    const buf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ac.createBufferSource(); noise.buffer = buf; noise.loop = true;
+    const nf = ac.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1700; nf.Q.value = 2;
+    const ng = ac.createGain(); ng.gain.value = 0;
+    noise.connect(nf); nf.connect(ng); ng.connect(audio.master);
+    noise.start();
+    audio.eng = { o1, o2, filt, gain, ng };
+  } catch (e) { audio.ctx = null; }
+}
+
+function updateAudio() {
+  if (!audio.eng) return;
+  const t = audio.ctx.currentTime, r = app.race, e = audio.eng;
+  let gain = 0, freq = 55, skid = 0, thr = 0;
+  if (r && r.me && app.screen === 'race' && !r.paused && r.phase !== 'finished') {
+    const sp = Math.hypot(r.me.vx, r.me.vy);
+    const sr = Math.min(1.15, sp / C.MAX_SPEED);
+    thr = r.lastInput.throttle;
+    const gears = 7, gf = sr * gears;
+    const gear = Math.min(gears - 1, Math.floor(gf));
+    let rpm = gear === 0 ? gf : 0.45 + 0.55 * (gf - gear);
+    if (r.phase === 'countdown') rpm = 0.15 + thr * 0.7;     // rev on the grid
+    freq = 55 + rpm * 150 + gear * 9;
+    gain = 0.05 + 0.07 * thr + 0.03 * sr;
+    skid = r.me.slip > 60 && sp > 100 && r.me.surface !== 'grass' ? Math.min(0.12, r.me.slip / 2500) : 0;
+  }
+  e.o1.frequency.setTargetAtTime(freq, t, 0.04);
+  e.o2.frequency.setTargetAtTime(freq * 0.5, t, 0.04);
+  e.filt.frequency.setTargetAtTime(400 + freq * (4 + 4 * thr), t, 0.08);
+  e.gain.gain.setTargetAtTime(gain, t, 0.08);
+  e.ng.gain.setTargetAtTime(skid, t, 0.05);
+}
+
+function beep(freq, dur, type = 'square', vol = 0.12) {
+  if (!audio.ctx) return;
+  const ac = audio.ctx, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, ac.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+  o.connect(g); g.connect(audio.master);
+  o.start(); o.stop(ac.currentTime + dur + 0.05);
+}
+let lastThud = 0;
+function thud(strength) {
+  const now = performance.now();
+  if (now - lastThud < 120) return;
+  lastThud = now;
+  beep(90 + Math.random() * 30, 0.18, 'triangle', 0.25 * strength + 0.05);
+}
+
+function toggleMute() {
+  audio.muted = !audio.muted;
+  store.set('vgp_muted', audio.muted ? '1' : '0');
+  if (audio.master) audio.master.gain.setTargetAtTime(audio.muted ? 0 : 0.55, audio.ctx.currentTime, 0.02);
+  updateMuteButtons();
+  toast(audio.muted ? 'Sound off' : 'Sound on', 'info', 1200);
+}
+function updateMuteButtons() {
+  $('btnMute').textContent = audio.muted ? '🔇' : '🔊';
+  $('btnPauseMute').textContent = audio.muted ? 'Sound: Off' : 'Sound: On';
+}
+$('btnMute').onclick = toggleMute;
+$('btnPauseMute').onclick = toggleMute;
+updateMuteButtons();
+
+// ============================================================
+// MAIN LOOP — requestAnimationFrame with delta time
+// ============================================================
+let lastFrame = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
+  lastFrame = now;
+  updateRace(dt);
+  updateCamera(dt);
+  render();
+  updateHUD();
+  updateAudio();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+showScreen('menu');
+updateConnStatus();
+connect();
+})();
+</script>
+</body>
+</html>

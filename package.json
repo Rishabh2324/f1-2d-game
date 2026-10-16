@@ -1,0 +1,17 @@
+{
+  "name": "velocity-gp",
+  "version": "1.0.0",
+  "description": "Top-down Formula-style racing game with LAN multiplayer rooms",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
